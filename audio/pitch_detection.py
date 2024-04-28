@@ -101,7 +101,13 @@ def realtime_pitch_detection(store_place: Queue, stop_signal):
     # Read data.
     frequency = None
     confidence = None
+    check = 2
     while True:
+        if check != 2:
+            check += 1
+            data = stream.read(CHUNK)
+            continue
+        check = 0
         if stop_signal.poll():
             print(stop_signal.recv())
             break
@@ -110,7 +116,7 @@ def realtime_pitch_detection(store_place: Queue, stop_signal):
         audio_data = np.frombuffer(data, dtype=np.int16)
         start = time.time()
         _, frequency, confidence, _ = crepe.predict(
-            audio_data, RATE, viterbi=False, verbose=0, model_capacity="tiny", step_size=10)
+            audio_data, RATE, viterbi=False, verbose=0, model_capacity="full", step_size=10)
         print(f"Time: {time.time() - start}")
 
         # print(f"Frequency: {sum(frequency)/len(frequency)}, Confidence: {sum(confidence)/len(confidence)}")
