@@ -118,3 +118,6 @@ log/
 
 **/downloaded_songs
 ./test.py
+**/pitch_detection_results
+**/recorded_audio
+**/separated_audio

@@ -1,9 +1,10 @@
+import time
 import wave
 
 import pyaudio
 
 
-def play_audio(filename: str, stop_signal):
+def play_audio(filename: str, stop_signal, start_time_conn):
     # Load file.
     wf = wave.open(filename, 'rb')
 
@@ -19,6 +20,7 @@ def play_audio(filename: str, stop_signal):
     )
 
     # Read data.
+    start_time_conn.put(time.time())
     data = wf.readframes(1024)
     while len(data) > 0:
         stream.write(data)

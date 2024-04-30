@@ -106,6 +106,7 @@ def realtime_pitch_detection(store_place: Queue, stop_signal):
         if check != 2:
             check += 1
             data = stream.read(CHUNK)
+            frames.append(data)
             continue
         check = 0
         if stop_signal.poll():
