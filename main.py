@@ -191,7 +191,6 @@ if __name__ == "__main__":
             if st.session_state.get('detection_result') is not None and st.session_state.get('start_time') is not None:
                 current_time = time.time() - st.session_state['start_time']
                 index = math.floor(current_time / 0.01)
-                print(index)
                 if index == 0:
                     index = 1
                 window = st.session_state['detection_result'][
@@ -214,7 +213,10 @@ if __name__ == "__main__":
                 'mark': 'circle',
                 'encoding': {
                     'x': {'field': 'x', 'type': 'quantitative'},
-                    'y': {'field': 'y', 'type': 'quantitative'},
+                    'y': {'field': 'y', 'type': 'quantitative', 'scale': {
+                        'domain': [0, 500], 'clamp': True}, 'axis': {'tickCount': 6}},
                     'color': {'field': 'color', 'type': 'nominal', 'scale': None}
-                }
+                },
+                'width': 800,
+                'height': 600
             })
