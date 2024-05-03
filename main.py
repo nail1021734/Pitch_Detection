@@ -49,26 +49,6 @@ def sep_audio(input_path, output_path):
         os.rename(f'{key}.wav', os.path.join(output_path, f'{key}.wav'))
 
 
-def plot_process(stop_signal):
-    # Plot the recorded pitch in `frequency_history`.
-    if st.session_state.get('frequency_pred') is None:
-        st.session_state['frequency_pred'] = Queue()
-    with st.empty():
-        while True:
-            confidence, frequency = st.session_state['frequency_pred'].get()
-            if len(st.session_state['frequency_history']) == 0:
-                st.session_state['frequency_history'].append(frequency)
-            else:
-                if confidence > 0.5:
-                    st.session_state['frequency_history'].append(frequency)
-                else:
-                    st.session_state['frequency_history'].append(st.session_state['frequency_history'][-1])
-            st.line_chart(st.session_state['frequency_history'][-100:])
-            if stop_signal.poll():
-                print(stop_signal.recv())
-                break
-
-
 if __name__ == "__main__":
     mp.set_start_method('spawn', force=True)
     if st.session_state.get('stop_signal') is None:
@@ -157,7 +137,6 @@ if __name__ == "__main__":
     if st.sidebar.button("Record"):
         st.session_state['frequency_pred'] = Queue()
         st.session_state['frequency_history'] = [(0, 0.0)] * 50
-        # threading.Thread(target=realtime_pitch_detection, args=(STORE_PLACE, stop_signal)).start()
         # Process(
         #   target=YIN_realtime_pitch_detection, args=(
         #   st.session_state['frequency_pred'], st.session_state['child_conn'])).start()
@@ -166,11 +145,8 @@ if __name__ == "__main__":
                 st.session_state['frequency_pred'], st.session_state['child_conn']
             )
         ).start()
-        # Process(target=plot_process, args=(st.session_state['stop_plot'],)).start()
     if st.sidebar.button("Stop Record"):
         st.session_state['stop_signal'].send('stop')
-        # st.session_state['stop_plot'].send('stop')
-
     with st.empty():
         while True:
             record_color = 'rgba(255,0,0,1)'
@@ -178,7 +154,7 @@ if __name__ == "__main__":
             song_color = 'rgba(0,255,0,1)'
             # Initialize scatter chart
             data = None
-            if st.session_state.get('frequency_pred') is not None:
+            if not st.session_state.get('frequency_pred').empty():
                 confidence, frequency = st.session_state['frequency_pred'].get()
                 st.session_state['frequency_history'].append((confidence, frequency))
                 st.session_state['frequency_history'] = st.session_state['frequency_history'][-50:]
@@ -187,7 +163,6 @@ if __name__ == "__main__":
                     'y': [i[1] for i in st.session_state['frequency_history']],
                     'color': [no_color if i[0] < 0.5 else record_color for i in st.session_state['frequency_history']]
                 })
-
             if st.session_state.get('detection_result') is not None and st.session_state.get('start_time') is not None:
                 current_time = time.time() - st.session_state['start_time']
                 index = math.floor(current_time / 0.01)
@@ -209,6 +184,7 @@ if __name__ == "__main__":
                     data = pd.concat([data, tmp_data])
                 else:
                     data = tmp_data
+                    time.sleep(0.05)
             st.vega_lite_chart(data, {
                 'mark': 'circle',
                 'encoding': {
