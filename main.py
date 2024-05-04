@@ -67,6 +67,8 @@ if __name__ == "__main__":
         PARENT_CONN, CHILD_CONN = Pipe()
         st.session_state['stop_plot'] = PARENT_CONN
         st.session_state['plot_child_conn'] = CHILD_CONN
+    if st.session_state.get('recording') is None:
+        st.session_state['recording'] = False
 
     # Setting layout
     st.title("Pitch Detection")
@@ -132,9 +134,11 @@ if __name__ == "__main__":
         st.session_state['stop_music'].send('stop')
         status_placeholder.text("Stopped the music successfully!")
         st.session_state['detection_result'] = None
+        st.session_state['pitch_history'] = [(0, 0.0)] * 50
 
     # Add a buttion to start record
     if st.sidebar.button("Record"):
+        st.session_state['recording'] = True
         st.session_state['frequency_pred'] = Queue()
         st.session_state['frequency_history'] = [(0, 0.0)] * 50
         # Process(
@@ -146,23 +150,16 @@ if __name__ == "__main__":
             )
         ).start()
     if st.sidebar.button("Stop Record"):
+        st.session_state['recording'] = False
         st.session_state['stop_signal'].send('stop')
+        st.session_state['frequency_history'] = [(0, 0.0)] * 50
+
     with st.empty():
         while True:
             record_color = 'rgba(255,0,0,1)'
             no_color = 'rgba(0,0,0,0)'
             song_color = 'rgba(0,255,0,1)'
             # Initialize scatter chart
-            data = None
-            if not st.session_state.get('frequency_pred').empty():
-                confidence, frequency = st.session_state['frequency_pred'].get()
-                st.session_state['frequency_history'].append((confidence, frequency))
-                st.session_state['frequency_history'] = st.session_state['frequency_history'][-50:]
-                data = pd.DataFrame({
-                    'x': [i for i in range(len(st.session_state['frequency_history']))],
-                    'y': [i[1] for i in st.session_state['frequency_history']],
-                    'color': [no_color if i[0] < 0.5 else record_color for i in st.session_state['frequency_history']]
-                })
             if st.session_state.get('detection_result') is not None and st.session_state.get('start_time') is not None:
                 current_time = time.time() - st.session_state['start_time']
                 index = math.floor(current_time / 0.01)
@@ -173,18 +170,41 @@ if __name__ == "__main__":
                 # Select the pitch which has the highest confidence.
                 confidence = window['Confidence'].max()
                 pitch = window.loc[window['Confidence'] == confidence, 'Frequency'].values[0]
-                st.session_state['pitch_history'].append((confidence, pitch))
+                if st.session_state['recording']:
+                    if not st.session_state['frequency_pred'].empty():
+                        st.session_state['pitch_history'].append((confidence, pitch))
+                else:
+                    if st.session_state.get('last_time') is None:
+                        st.session_state['last_time'] = time.time()
+                    if time.time() - st.session_state['last_time'] > 0.08:
+                        st.session_state['last_time'] = time.time()
+                        st.session_state['pitch_history'].append((confidence, pitch))
+
+            if len(st.session_state.get('frequency_history')) > 0:
+                if not st.session_state.get('frequency_pred').empty():
+                    confidence, frequency = st.session_state['frequency_pred'].get()
+                    st.session_state['frequency_history'].append((confidence, frequency))
+                    st.session_state['frequency_history'] = st.session_state['frequency_history'][-50:]
+
+            data = None
+            if len(st.session_state['frequency_history']) > 0:
+                data = pd.DataFrame({
+                    'x': [i for i in range(len(st.session_state['frequency_history']))],
+                    'y': [i[1] for i in st.session_state['frequency_history']],
+                    'color': [no_color if i[0] < 0.5 else record_color for i in st.session_state['frequency_history']]
+                })
+            if len(st.session_state['pitch_history']) > 0:
                 st.session_state['pitch_history'] = st.session_state['pitch_history'][-50:]
                 tmp_data = pd.DataFrame({
                     'x': [i for i in range(len(st.session_state['pitch_history']))],
                     'y': [i[1] for i in st.session_state['pitch_history']],
                     'color': [no_color if i[0] < 0.7 else song_color for i in st.session_state['pitch_history']]
                 })
-                if data is not None:
+                if isinstance(data, pd.DataFrame):
                     data = pd.concat([data, tmp_data])
                 else:
                     data = tmp_data
-                    time.sleep(0.05)
+
             st.vega_lite_chart(data, {
                 'mark': 'circle',
                 'encoding': {
