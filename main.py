@@ -193,7 +193,7 @@ if __name__ == "__main__":
                     'y': [i[1] for i in st.session_state['frequency_history']],
                     'color': [no_color if i[0] < 0.5 else record_color for i in st.session_state['frequency_history']]
                 })
-            if len(st.session_state['pitch_history']) > 0:
+            if st.session_state.get('pitch_history') is not None and len(st.session_state['pitch_history']) > 0:
                 st.session_state['pitch_history'] = st.session_state['pitch_history'][-50:]
                 tmp_data = pd.DataFrame({
                     'x': [i for i in range(len(st.session_state['pitch_history']))],
